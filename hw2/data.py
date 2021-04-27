@@ -177,7 +177,7 @@ if __name__ == "__main__":
     for dname in dnames:
         print("-----------------------")
         print(dname)
-        data = read_texts("data/corpora.tar.gz", dname)
+        data = read_texts("hw2/data/corpora.tar.gz", dname)
         datas.append(data)
         model = learn_unigram(data)
         models.append(model)
