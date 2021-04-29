@@ -7,6 +7,7 @@ from __future__ import absolute_import
 import itertools
 from math import log
 import sys
+import string
 
 # Python 3 backwards compatibility tricks
 if sys.version_info.major > 2:
@@ -21,9 +22,15 @@ class LangModel:
     def fit_corpus(self, corpus):
         """Learn the language model for the whole corpus.
 
+
         The corpus consists of a list of sentences."""
+
+        x = 0
         for s in corpus:
             self.fit_sentence(s)
+            x += 1
+            if x > 5:
+                exit()
         self.norm()
 
     def perplexity(self, corpus):
@@ -61,7 +68,7 @@ class LangModel:
     def norm(self): pass
     # required, return the log2 of the conditional prob of word, given previous words
     def cond_logprob(self, word, previous, numOOV): pass
-    # required, the list of words the language model suports (including EOS)
+    # required, the list of words the language model supports (including EOS)
     def vocab(self): pass
 
 class Unigram(LangModel):
@@ -99,16 +106,57 @@ class Unigram(LangModel):
         return self.model.keys()
 
 class Ngram(LangModel):
-    def __init__(self, ngram_size): pass
+    def __init__(self, ngram_size, unk_prob=0.0001):
+
+        self.lunk_prob = log(unk_prob, 2)
+        self.ngram_size = ngram_size
+        self.ngram_counts = {}
+
+    def get_ngrams(self, num, tokens):
+        for i in range(num-1):
+            tokens.insert(0, "<START>")
+        tokens.append("END_OF_SENTENCE")
+        ngrams = zip(*[tokens[i:] for i in range(num)])
+        return [" ".join(ngram) for ngram in ngrams]
 
     # required, update the model when a sentence is observed
-    def fit_sentence(self, sentence): pass
+    def fit_sentence(self, sentence):
+        """
+        Updates Language Model
+        :param sentence: input text
+        """
+
+        ngrams = self.get_ngrams(self.ngram_size, sentence)
+        for ngram in ngrams:
+            prev, current = ngrams[:-1], ngrams[-1]
+
+        print("Printing prev")
+        print(prev)
+        print("Printing current")
+        print(current)
+
+
 
     # optional, if there are any post-training steps (such as normalizing probabilities)
-    def norm(self): pass
+    def norm(self):
+        """Incorporate a way to use UNK"""
+
+
+        """Normalize and convert to log2-probs."""
+        tot = 0.0
+        for word in self.model:
+            tot += self.model[word]
+        ltot = log(tot, 2)
+        for word in self.model:
+            self.model[word] = log(self.model[word], 2) - ltot
 
     # required, return the log2 of the conditional prob of word, given previous words
-    def cond_logprob(self, word, previous, numOOV): pass
+    def cond_logprob(self, word, previous, numOOV):
+        if word in self.model:
+            return self.model[word]
+        else:
+            return self.lunk_prob - log(numOOV, 2)
 
-    # required, the list of words the language model suports (including EOS)
-    def vocab(self): pass
+    # required, the list of words the language model supports (including EOS)
+    def vocab(self):
+        return self.model.keys()
