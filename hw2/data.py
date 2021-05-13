@@ -132,18 +132,40 @@ def learn_bigram(data):
     from lm import Ngram
     bigram = Ngram(2)
     bigram.fit_corpus(data.train)
-    # print("vocab:", len(bigram.vocab()))
+    print("vocab:", len(bigram.vocab()))
 
-    # evaluate on train, test, and dev
+    #evaluate on train, test, and dev
 
-    # print("train:", bigram.perplexity(data.train))
-    # print("dev  :", bigram.perplexity(data.dev))
-    # print("test :", bigram.perplexity(data.test))
-    # from generator import Sampler
-    # sampler = Sampler(bigram)
-    # for _ in range(2):
-    #     print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([], max_length=20)))
+    print("train:", bigram.perplexity(data.train))
+    print("dev  :", bigram.perplexity(data.dev))
+    print("test :", bigram.perplexity(data.test))
+    from generator import Sampler
+    sampler = Sampler(bigram)
+    for _ in range(2):
+          print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([], max_length=20)))
     return bigram
+
+def learn_trigram(data):
+    """Learns a bigram model from data.train.
+
+    It also evaluates the model on data.dev and data.test, along with generating
+    some sample sentences from the model.
+    """
+    from lm import Ngram
+    trigram = Ngram(3)
+    trigram.fit_corpus(data.train)
+    print("vocab:", len(trigram.vocab()))
+
+    #evaluate on train, test, and dev
+
+    print("train:", trigram.perplexity(data.train))
+    print("dev  :", trigram.perplexity(data.dev))
+    print("test :", trigram.perplexity(data.test))
+    from generator import Sampler
+    sampler = Sampler(trigram)
+    for _ in range(2):
+          print("sample: ", " ".join(str(x) for x in sampler.sample_sentence([], max_length=20)))
+    return trigram
 
 def print_table(table, row_names, col_names, latex_file = None):
     """Pretty prints the table given the table, and row and col names.
@@ -193,8 +215,8 @@ if __name__ == "__main__":
 
     # Do no run, the following function was used to generate the splits
     # file_splitter("data/reuters.txt")
-    #dnames = ["brown", "reuters", "gutenberg"]
-    dnames = ["brown"]
+    dnames = ["brown", "reuters", "gutenberg"]
+    #dnames = ["brown"]
     datas = []
     models = []
     # Learn the models for each of the domains, and evaluate it
@@ -203,32 +225,34 @@ if __name__ == "__main__":
         print(dname)
         data = read_texts("hw2/data/corpora.tar.gz", dname)
         datas.append(data)
-        # model = learn_unigram(data)
-        # models.append(model)
+        model = learn_unigram(data)
+        models.append(model)
         model2 = learn_bigram(data)
         models.append(model2)
+        # model3 = learn_trigram(data)
+        # models.append(model3)
     #compute the perplexity of all pairs
 
     #COMMENTING OUT EVERYTHING BELOW
-    # n = len(dnames)
-    # perp_dev = np.zeros((n,n))
-    # perp_test = np.zeros((n,n))
-    # perp_train = np.zeros((n,n))
-    # for i in range(n):
-    #     for j in range(n):
-    #         perp_dev[i][j] = models[i].perplexity(datas[j].dev)
-    #         perp_test[i][j] = models[i].perplexity(datas[j].test)
-    #         perp_train[i][j] = models[i].perplexity(datas[j].train)
-    #
-    # print("-------------------------------")
-    # print("x train")
-    # print_table(perp_train, dnames, dnames, os.path.join(output_dir, "table-train.tex"))
-    # print("-------------------------------")
-    # print("x dev")
-    # print_table(perp_dev, dnames, dnames, os.path.join(output_dir, "table-dev.tex"))
-    # print("-------------------------------")
-    # print("x test")
-    # print_table(perp_test, dnames, dnames, os.path.join(output_dir, "table-test.tex"))
-    # print("-------------------------------")
-    # print("saving language models to file")
+    n = len(dnames)
+    perp_dev = np.zeros((n,n))
+    perp_test = np.zeros((n,n))
+    perp_train = np.zeros((n,n))
+    for i in range(n):
+        for j in range(n):
+            perp_dev[i][j] = models[i].perplexity(datas[j].dev)
+            perp_test[i][j] = models[i].perplexity(datas[j].test)
+            perp_train[i][j] = models[i].perplexity(datas[j].train)
+
+    print("-------------------------------")
+    print("x train")
+    print_table(perp_train, dnames, dnames, os.path.join(output_dir, "table-train.tex"))
+    print("-------------------------------")
+    print("x dev")
+    print_table(perp_dev, dnames, dnames, os.path.join(output_dir, "table-dev.tex"))
+    print("-------------------------------")
+    print("x test")
+    print_table(perp_test, dnames, dnames, os.path.join(output_dir, "table-test.tex"))
+    print("-------------------------------")
+    print("saving language models to file")
     # save_lms(dnames, models, output_dir)

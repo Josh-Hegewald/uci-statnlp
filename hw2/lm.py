@@ -5,8 +5,10 @@ from __future__ import print_function
 from __future__ import absolute_import
 
 import itertools
+from curses import has_key
 from math import log
 import sys
+import copy
 import string
 
 # Python 3 backwards compatibility tricks
@@ -21,16 +23,32 @@ if sys.version_info.major > 2:
 class LangModel:
     def fit_corpus(self, corpus):
         """Learn the language model for the whole corpus.
-
-
         The corpus consists of a list of sentences."""
+        self.vocab_words = {}
+        for s in corpus:
+            for word in s:
+                if word in self.vocab_words:
+                    self.vocab_words[word] += 1.0
+                else:
+                    self.vocab_words[word] = 1.0
+                #keep counts of each word
 
-        x = 0
+        min_count = 2
+        vocabulary = copy.deepcopy(self.vocab_words)
+        for word in self.vocab_words:
+            #if count is less than min_count, delete it from vocabulary
+            if self.vocab_words[word] < min_count:
+                del vocabulary[word]
+
+        self.vocab_words = copy.deepcopy(vocabulary)
+
+        # x = 0
         for s in corpus:
             self.fit_sentence(s)
-            x += 1
-            if x > 5:
-                exit()
+            # x += 1
+            # if x > 2:
+            #     self.norm()
+            #     exit()
         self.norm()
 
     def perplexity(self, corpus):
@@ -111,13 +129,22 @@ class Ngram(LangModel):
         self.lunk_prob = log(unk_prob, 2)
         self.ngram_size = ngram_size
         self.ngram_counts = {}
+        self.ngram_context_counts = {}
 
     def get_ngrams(self, num, tokens):
         for i in range(num-1):
             tokens.insert(0, "<START>")
         tokens.append("END_OF_SENTENCE")
-        ngrams = zip(*[tokens[i:] for i in range(num)])
-        return [" ".join(ngram) for ngram in ngrams]
+        output = []
+        for i in range(len(tokens) - num + 1):
+            output.append(tokens[i:i + num])
+        return output
+
+    def unkify(self, sentence):
+        for w in sentence:
+            if w not in self.vocab_words:
+                sentence = ['UNK' if i==w else i for i in sentence]
+        return sentence
 
     # required, update the model when a sentence is observed
     def fit_sentence(self, sentence):
@@ -125,38 +152,54 @@ class Ngram(LangModel):
         Updates Language Model
         :param sentence: input text
         """
-
+        sentence = self.unkify(sentence)
         ngrams = self.get_ngrams(self.ngram_size, sentence)
         for ngram in ngrams:
-            prev, current = ngrams[:-1], ngrams[-1]
-
-        print("Printing prev")
-        print(prev)
-        print("Printing current")
-        print(current)
-
+            prev, current = ' '.join(ngram[:-1]), ngram[-1]
+            if prev not in self.ngram_counts:
+                self.ngram_counts[prev] = {}
+                self.ngram_context_counts[prev] = {}
+            if current not in self.ngram_counts[prev]:
+                self.ngram_counts[prev][current] = 1
+            else:
+                self.ngram_counts[prev][current] += 1
 
 
     # optional, if there are any post-training steps (such as normalizing probabilities)
     def norm(self):
-        """Incorporate a way to use UNK"""
 
-
-        """Normalize and convert to log2-probs."""
-        tot = 0.0
-        for word in self.model:
-            tot += self.model[word]
-        ltot = log(tot, 2)
-        for word in self.model:
-            self.model[word] = log(self.model[word], 2) - ltot
+        for prev in self.ngram_counts:
+            total_count = 0.0
+            for word in self.ngram_counts[prev]:
+                total_count += self.ngram_counts[prev][word]
+            for word in self.ngram_counts[prev]:
+                self.ngram_counts[prev][word] = log((1 + self.ngram_counts[prev][word]) / (total_count + 1*len(self.vocab_words)),2) #saves ngram_counts[prev][word] as a percentage
+            self.ngram_context_counts[prev] = log(1 / (total_count + 1 * len(self.vocab_words)), 2)
 
     # required, return the log2 of the conditional prob of word, given previous words
     def cond_logprob(self, word, previous, numOOV):
-        if word in self.model:
-            return self.model[word]
+
+        word = self.unkify(word)
+        previous = self.unkify(previous)
+        word = ' '.join(word)
+        previous_temp = previous
+        for i in range(self.ngram_size-1):
+            previous_temp.insert(0, "<START>")
+
+        prev = ' '.join(previous_temp[-(self.ngram_size - 1):])
+
+        if prev in self.ngram_counts:
+            if word in self.ngram_counts[prev]: #both previous and word are in dictionary
+                return self.ngram_counts[prev][word]
+            else: #previous but not word
+                return self.ngram_context_counts[prev]
         else:
-            return self.lunk_prob - log(numOOV, 2)
+            if word in self.vocab_words: #word but not previous
+                return log((1-.0001)/len(self.vocab_words),2)
+            else: #neither word nor previous
+                return log(.0001,2)
+
 
     # required, the list of words the language model supports (including EOS)
     def vocab(self):
-        return self.model.keys()
+        return self.ngram_counts.keys()
