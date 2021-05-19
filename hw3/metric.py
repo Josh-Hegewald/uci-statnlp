@@ -153,6 +153,12 @@ class AccuracyPerLabel(Metric):
         # You should add to the values already stored there.
         # See the `Accuracy.__call__()` to see an example of this.
 
+        for pred, lab, m in zip(predictions, gold_labels, mask):
+            if m == 1:
+                self.total_count[lab] += 1
+                if pred == lab:
+                    self.correct_count[lab] += 1
+
     def get_metric(self, reset=False):
         # accuracies per label
         accuracy = {}
@@ -161,7 +167,6 @@ class AccuracyPerLabel(Metric):
                 accuracy[label_id] = float(self.correct_count[label_id]/self.total_count[label_id])
             else:
                 accuracy[label_id] = 0
-
         if reset:
             self.reset()
 

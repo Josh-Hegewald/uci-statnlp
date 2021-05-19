@@ -24,9 +24,26 @@ def run_viterbi(emission_scores, trans_scores, start_scores, end_scores):
     assert emission_scores.shape[1] == L
     N = emission_scores.shape[0]
 
-    y = []
-    for i in range(N):
-        # stupid sequence
-        y.append(i % L)
-    # score set to 0
-    return (0.0, y)
+    trans_scores += start_scores
+    emission_scores += start_scores
+
+    #containers for back pointers and emission scores
+    back_ptrs = np.zeros_like(emission_scores, dtype=np.int32)
+    em_scores = np.zeros_like(emission_scores)
+
+    em_scores[0] = start_scores + emission_scores[0]
+
+    for j in range(1, N):
+        transition_plus_score = trans_scores + np.expand_dims(em_scores[j - 1], 1) #expand_dim is equivalent to x[np.newaxis, :]
+        back_ptrs[j] = np.argmax(transition_plus_score, 0)
+        em_scores[j] = np.max(transition_plus_score, 0) + emission_scores[j]
+
+    y = [np.argmax(end_scores + em_scores[-1])]
+    s = np.max(end_scores + em_scores[-1])
+
+    for back_ptr in reversed(back_ptrs[1:]): #grab back_ptrs except for the first one (start token)
+        y.append(back_ptr[y[-1]])
+    y.reverse()
+    return (s, y)
+
+

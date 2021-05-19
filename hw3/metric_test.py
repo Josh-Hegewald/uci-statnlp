@@ -20,10 +20,13 @@ def run_metric_test():
 
     metric(predictions, labels, mask)
     your_scores = metric.get_metric()
+    print("yr scores")
+    print(your_scores)
     gold_scores = {0: 0.25, 1: 0.5, 2: 0.5, 3: 0.0, 4: 0.5}
     print(f'Round 1: Your metric scores {your_scores}')
     print(f'Round 1: Gold metric scores {gold_scores}\n')
     assert gold_scores == your_scores
+
 
     # Round 2 through metric. Checks that we are accumulating counts correctly.
     predictions =   torch.Tensor([[1, 1, 3, 3, 0]])
